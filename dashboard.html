@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>الصفحة الرئيسية</title>
+  <style>
+    /* تخصيصات لصفحة الملف الشخصي */
+    .profile-info {
+      margin-top: 20px;
+      padding: 20px;
+      background-color: #f9f9f9;
+      border-radius: 8px;
+      text-align: left;
+    }
+
+    .profile-info h2 {
+      font-size: 24px;
+    }
+
+    .profile-info p {
+      font-size: 18px;
+    }
+
+    /* تخصيصات أخرى */
+    .message {
+      margin: 10px 0;
+      padding: 10px;
+      background-color: #f9f9f9;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      text-align: left;
+    }
+
+    .username {
+      font-weight: bold;
+      cursor: pointer;
+      color: #4267B2;
+    }
+
+    /* تخصيص الأزرار */
+    .logout-button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      background-color: #4267B2;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    .logout-button:hover {
+      background-color: #365899;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    الصفحة الرئيسية
+  </header>
+  
+  <div class="container" id="main-container">
+    <p class="welcome-message">مرحبًا بك في تطبيق Spherely!</p>
+    <textarea class="input-message" id="message-input" placeholder="اكتب رسالتك هنا..."></textarea>
+    <button class="publish-message" id="publish-button">نشر الرسالة</button>
+    <div id="messages-container"></div>
+    <button class="logout-button" id="logout-button">تسجيل الخروج</button>
+  </div>
+
+  <div class="profile-info" id="profile-info" style="display: none;">
+    <h2>الملف الشخصي</h2>
+    <p><strong>اسم المستخدم:</strong> <span id="profile-username"></span></p>
+    <p><strong>تاريخ التسجيل:</strong> <span id="profile-registration-date"></span></p>
+    <p><strong>السن:</strong> <span id="profile-age"></span></p>
+    <p><strong>التعليم:</strong> <span id="profile-education"></span></p>
+    <p><strong>العلاقة العاطفية:</strong> <span id="profile-relationship"></span></p>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+    import { getDatabase, ref, set, get, child, push } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCnHSUo_Vu53NidFWYlQ74_CyOyfVW_BqQ",
+      authDomain: "alaah-8d503.firebaseapp.com",
+      databaseURL: "https://alaah-8d503-default-rtdb.firebaseio.com",
+      projectId: "alaah-8d503",
+      storageBucket: "alaah-8d503.appspot.com",
+      messagingSenderId: "365922482892",
+      appId: "1:365922482892:web:a843fbb3594d200c67e069",
+      measurementId: "G-D4TPJW4RT8"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const database = getDatabase(app);
+
+    // التحقق إذا كان المستخدم مسجل الدخول
+    if (!sessionStorage.getItem('loggedIn')) {
+      window.location.href = "spherely.html";
+    }
+
+    // Logout functionality
+    document.getElementById('logout-button').addEventListener('click', () => {
+      sessionStorage.removeItem('loggedIn');
+      alert('تم تسجيل الخروج بنجاح!');
+      window.location.href = "spherely.html";
+    });
+
+    // نشر الرسالة
+    document.getElementById('publish-button').addEventListener('click', () => {
+      const message = document.getElementById('message-input').value;
+      const username = sessionStorage.getItem('username'); // أخذ اسم المستخدم من الجلسة
+
+      if (message.trim() !== '') {
+        const newMessageKey = push(child(ref(database), 'messages')).key;
+        set(ref(database, 'messages/' + newMessageKey), {
+          username: username,
+          message: message,
+          timestamp: new Date().toISOString(),
+        });
+        document.getElementById('message-input').value = '';
+      }
+    });
+
+    // استرجاع الرسائل وعرضها
+    window.onload = function() {
+      const messagesRef = ref(database, 'messages/');
+      get(messagesRef).then((snapshot) => {
+        if (snapshot.exists()) {
+          const messagesContainer = document.getElementById('messages-container');
+          messagesContainer.innerHTML = '';
+          snapshot.forEach(childSnapshot => {
+            const messageData = childSnapshot.val();
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message');
+            messageElement.innerHTML = `
+              <span class="username" onclick="viewProfile('${messageData.username}')">${messageData.username}</span>: ${messageData.message}
+            `;
+            messagesContainer.appendChild(messageElement);
+          });
+        }
+      });
+    };
+
+    // عرض الملف الشخصي
+    function viewProfile(username) {
+      // استرجاع معلومات المستخدم من الجلسة أو من Firebase
+      const usersRef = ref(database, 'users/');
+      get(usersRef).then((snapshot) => {
+        if (snapshot.exists()) {
+          snapshot.forEach(childSnapshot => {
+            const userData = childSnapshot.val();
+            if (userData.username === username) {
+              document.getElementById('profile-username').textContent = userData.username;
+              document.getElementById('profile-registration-date').textContent = userData.registrationDate;
+              document.getElementById('profile-age').textContent = userData.age;
+              document.getElementById('profile-education').textContent = userData.education;
+              document.getElementById('profile-relationship').textContent = userData.relationship;
+              document.getElementById('profile-info').style.display = 'block';
+            }
+          });
+        }
+      });
+    }
+
+    // إذا لم يكن هناك ملف شخصي في الجلسة، تظهر هذه البيانات افتراضيًا
+    window.onload = function() {
+      if (sessionStorage.getItem('username')) {
+        const username = sessionStorage.getItem('username');
+        document.getElementById('profile-username').textContent = username;
+      }
+    };
+  </script>
+
+</body></html>
